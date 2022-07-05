@@ -1,12 +1,113 @@
+from typing import Optional, Dict 
 import numpy as np
 import pandas as pd
-import anndata as ad
+import anndata
 
-def construct_base_networks(adata, ccc_outputs, condition_label,
-                            method='cellchat', feasible_pairs=[],
-                            celltype_sep_old=' ', celltype_sep_new='-', node_sep='_',
-                            base_network_label='base_networks',
-                            pval_cutoff=0.05):
+def construct_base_networks(adata: anndata.AnnData,
+                            ccc_outputs: Dict[str, pd.DataFrame],
+                            condition_label: str,
+                            method: str = 'cellchat',
+                            feasible_pairs: Optional[list] = None,
+                            base_network_label: str = 'base_networks',
+                            celltype_sep_old: str = ' ',
+                            celltype_sep_new: str = '-',
+                            node_sep: str = '_',
+                            pval_cutoff:Optional[float] = 0.05):
+    """
+    Constructs the base network of possible causal interactions from
+    cell-cell communication inference.
+
+    Base networks are constructed by searching the cell-cell communication 
+    networks for triplets of cell types (A, B, C) such that if A -> B via L1 - R1
+    and B -> C via L2 - R2, then the nodes (A, L1) and (B, L2) and the edge
+    (A, L1) -> (B, L2) are added to the base network. 
+
+    Cell-cell communication has to be specified as a dictionary, where condition labels
+    are keys and a dataframe of interactions per condition as the values. Currently, 
+    cellflowsig can accept communication inferred from CellChat [Jin2021], where
+    the interactions are generated using the subsetCommunication command; from
+    CellPhoneDB [Efremova2020], both means.txt and pvalues.txt have been stored as dataframes;
+    or from Squidpy [Palla2022], where output is in the form of numerous dataframes.
+
+
+    Parameters
+    ----------
+    adata
+        The annotated dataframe (typically from Scanpy) of the single-cell data.
+        Must contain transformed cell-type-ligand expression and the base networks,
+        as constructed from pp.construct_base_networks and 
+        pp.construct_celltype_ligand_expressions.
+
+    ccc_outputs
+        A dictionary of cell-cell communication inference per condition label, which 
+        must match the categories specified by adata.obs[condition_label].
+
+    condition_label 
+        The label in adata.obs which we use to partition the data. The categories
+        under this observation variable must match the keys in ccc_outputs.
+
+    method
+        The method used to infer cell-cell communication. Currently, we only support
+        CellChat, CellPhoneDB, or Squidpy (which uses CellPhoneDB).
+
+    feasible_pairs
+        An optional list of cell type pairs that can be used to constrain cell-cell 
+        communication inference and thus constrain the base network of interactions.
+        This is used to specify, for example, spatial constraints in communication 
+        that have been inferred by packages such as Giotto.
+
+    base_network_label
+        The label for which the base network and original CCC inference are stored in adata.uns
+
+    celltype_sep_old
+        The string separator used in cell type annotation that will be replaced by celltype_sep_new
+         during causal structure learning to avoid issues with certain methods, e.g. UT-IGSP.
+         Typically, we want to replace spaces or underlines.
+    
+    celltype_sep_new
+        What will replace celltype_sep_old. We will typically replace spaces/underlines with hyphens
+
+    node_sep
+        String separator used to join cell type and ligand pairs when constructing base network.
+    
+    pval_cutoff
+        Cut-off for p-values to remove statistically insignificant interactions. Only used for 
+        interactions inferred from CellPhoneDB/Squidpy.
+
+    Returns
+    -------
+    ccc_output
+        Stores the original cell-cell communication inference for later validation.
+
+    celltype_ligands
+        The weighted adjacency matrix of inferred causal signaling interactions,
+        where weights are determined from bootstrap aggregation. Stored in 
+        adata.uns[causal_network_label]['causal_adjacency']
+
+    base_networks
+        Dictionary of condition-specific and condition-shared (joined) base networks
+        of cell-type-ligand pairs and directed edges that could correspond to causal
+        signaling networks. Used to transform the original gene expression data and
+        used as prior knowledge input for causal signaling.
+
+    References
+    ----------
+    [Jin2021]
+        Jin, S., Guerrero-Juarez, C. F., Zhang, L., Chang, I., Ramos, R., Kuan, C. H.,...
+        & Nie, Q. (2021). Inference and analysis of cell-cell communication using CellChat 
+        Nature communications, 12(1), 1-20.
+
+    [Efremova2020] 
+        Efremova, M., Vento-Tormo, M., Teichmann, S. A., & Vento-Tormo, R. (2020).
+        CellPhoneDB: inferring cell–cell communication from combined expression of 
+        multi-subunit ligand–receptor complexes. Nature protocols, 15(4), 1484-1506.
+
+    [Palla2022]
+        Palla, G., Spitzer, H., Klein, M., Fischer, D., Schaar, A. C., Kuemmerle, L. B., ... 
+        & Theis, F. J. (2022). Squidpy: a scalable framework for spatial omics analysis. 
+        Nature methods, 19(2), 171-178.
+        
+    """
 
     ccc_methods = ['cellchat', 'cellphonedb', 'squidpy']
 
@@ -24,7 +125,7 @@ def construct_base_networks(adata, ccc_outputs, condition_label,
 
             adata.uns[base_network_label] = construct_base_networks_from_cellphonedb(adata, ccc_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff)
 
-        else: # Should be squidpy
+        else: # Should be Squidpy
 
             adata.uns[base_network_label] = construct_base_networks_from_squidpy(adata, ccc_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff)
 
@@ -116,7 +217,7 @@ def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_lab
         base_networks['joined']['edges'] = list(set.union(*map(set, [base_networks[condition]['edges'] for condition in conditions])))
 
     # Define as dictionary
-    base_networks = {'ccc_output':cellchat_outputs, 'celltype_ligands':considered_celltype_ligands, 'base_networks':base_networks}
+    base_networks = {'ccc_output':cellchat_outputs, 'celltype_ligands':considered_celltype_ligands, 'networks':base_networks}
     return base_networks
 
 def construct_base_networks_from_cellphonedb(adata, cellphonedb_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff):
@@ -187,8 +288,77 @@ def construct_base_networks_from_cellphonedb(adata, cellphonedb_outputs, feasibl
         base_networks = construct_base_networks_from_cellchat(adata, converted_cellphonedb_output, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep)
         return base_networks
 
-def construct_base_networks_from_squidpy(adata, squidpy_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff):
+def construct_base_networks_from_squidpy(adata: anndata.AnnData,
+                                        squidpy_outputs: Dict[str, Dict[str, pd.DataFrame]],
+                                        feasible_pairs: Optional[], condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff):
+    """
+    Constructs the base network of possible causal interactions from
+    cell-cell communication inferred using Squidpy.
 
+    This method converts Squidpy output into something resembling CellChat
+    output, after which we then call construct_base_networks_from_cellchat.
+
+    Parameters
+    ----------
+    adata
+        The annotated dataframe (typically from Scanpy) of the single-cell data.
+        Must contain transformed cell-type-ligand expression and the base networks,
+        as constructed from pp.construct_base_networks and 
+        pp.construct_celltype_ligand_expressions.
+
+    ccc_outputs
+        A dictionary of cell-cell communication inference per condition label, which 
+        must match the categories specified by adata.obs[condition_label].
+
+    condition_label 
+        The label in adata.obs which we use to partition the data. The categories
+        under this observation variable must match the keys in ccc_outputs.
+
+    method
+        The method used to infer cell-cell communication. Currently, we only support
+        CellChat, CellPhoneDB, or Squidpy (which uses CellPhoneDB).
+
+    feasible_pairs
+        An optional list of cell type pairs that can be used to constrain cell-cell 
+        communication inference and thus constrain the base network of interactions.
+        This is used to specify, for example, spatial constraints in communication 
+        that have been inferred by packages such as Giotto.
+
+    base_network_label
+        The label for which the base network and original CCC inference are stored in adata.uns
+
+    celltype_sep_old
+        The string separator used in cell type annotation that will be replaced by celltype_sep_new
+         during causal structure learning to avoid issues with certain methods, e.g. UT-IGSP.
+         Typically, we want to replace spaces or underlines.
+    
+    celltype_sep_new
+        What will replace celltype_sep_old. We will typically replace spaces/underlines with hyphens
+
+    node_sep
+        String separator used to join cell type and ligand pairs when constructing base network.
+    
+    pval_cutoff
+        Cut-off for p-values to remove statistically insignificant interactions. Only used for 
+        interactions inferred from CellPhoneDB/Squidpy.
+
+    Returns
+    -------
+    ccc_output
+        Stores the original cell-cell communication inference for later validation.
+
+    celltype_ligands
+        The weighted adjacency matrix of inferred causal signaling interactions,
+        where weights are determined from bootstrap aggregation. Stored in 
+        adata.uns[causal_network_label]['causal_adjacency']
+
+    base_networks
+        Dictionary of condition-specific and condition-shared (joined) base networks
+        of cell-type-ligand pairs and directed edges that could correspond to causal
+        signaling networks. Used to transform the original gene expression data and
+        used as prior knowledge input for causal signaling.
+
+    """
     converted_squidpy_output = {}
 
     for condition in squidpy_outputs:

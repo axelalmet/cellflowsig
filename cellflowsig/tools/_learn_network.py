@@ -1,4 +1,3 @@
-from typing import Optional
 import networkx as nx
 from scipy.sparse import issparse
 import numpy as np
@@ -16,8 +15,8 @@ import anndata
 # def convert_adjacency_to_network(adata):
 
 def learn_causal_network(adata: anndata.AnnData,
-                        condition_label: str = None,
-                        control_label: str = None, 
+                        condition_label: str,
+                        control_label: str, 
                         causal_network_label: str = 'causal_networks',
                         base_network_label: str = 'base_networks',
                         celltype_ligands_label: str = 'X_celltype_ligands',
@@ -116,7 +115,7 @@ def learn_causal_network(adata: anndata.AnnData,
     celltype_ligands = adata.uns[base_network_label]['celltype_ligands']
 
     # Define the joined candidate network
-    base_network_edges = adata.uns[base_network_label]['joined']['edges']
+    base_network_edges = adata.uns[base_network_label]['networks']['joined']['edges']
 
     # Define the sampling step function where we input the initial list of permutations
     def run_utigsp(control_sample, perturbed_samples, celltype_ligands, base_edges, n_shuffles, alpha, alpha_inv, seed):
