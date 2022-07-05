@@ -89,8 +89,6 @@ def plot_clustered_network(adata: anndata.AnnData,
                             edge_type: str = 'condition',
                             circle_radius_outer: float = 7.0,
                             circle_radius_inner: float = 2.0,
-                            ligand_label_shift: float = 1.1,
-                            celltype_label_shift: float = 1.05,
                             node_size: int = 50,
                             node_border_scale: float = 2.0,
                             node_color_map: str = 'tab10',
@@ -98,9 +96,7 @@ def plot_clustered_network(adata: anndata.AnnData,
                             edge_width_scale: float = 1.0,
                             arrow_size: int = 15,
                             edge_alpha: float = 0.6,
-                            font_size: int = 12, 
-                            xmargin: float = 0.2,
-                            ymargin: float = 0.1):
+                            font_size: int = 12):
 
     if network_label not in ['base_networks', 'causal_networks']:
 
@@ -154,7 +150,7 @@ def plot_clustered_network(adata: anndata.AnnData,
                 plt.figure(figsize=(12, 12)) 
                 plt.rcParams["font.family"] = "Arial"
                 plt.rcParams["font.size"] = font_size
-                nodes = nx.draw_networkx_nodes(output_graph, output_graph_pos, node_color=node_colours, cmap=node_color_map, node_size=50, edgecolors='black', linewidths=node_borders)
+                nodes = nx.draw_networkx_nodes(output_graph, output_graph_pos, node_color=node_colours, cmap=node_color_map, node_size=node_size, edgecolors='black', linewidths=node_borders)
                 edges = nx.draw_networkx_edges(
                     output_graph,
                     output_graph_pos,
@@ -303,14 +299,23 @@ def plot_spatial_regions(adata: anndata.AnnData,
                         condition_label: str,
                         output_name: Optional[str] = None,
                         network_label: str = 'causal_network',
+                        node_sep = '_',
                         jiggle_scale: float = 1.0,
-                        node_cmap: str = 'tab10'):
+                        node_cmap: str = 'tab10',
+                        edge_cmap: str = 'tab10',
+                        node_size: int = 50,
+                        node_border_scale: float = 0.25,
+                        edge_width_scale: float = 5.0,
+                        edge_alpha: float = 0.6):
 
     conditions = adata.obs[condition_label].unique().tolist()
     celltype_ligands = list(adata.uns[network_label]['celltype_ligands'])
 
     # Get the feasible pairs. We can't run this method without it.
     feasible_pairs = adata.uns[network_label]['feasible_pairs']
+
+    # Get the weighted causal adjacency
+    causal_adjacency = adata.uns['causal_network']['causal_adjacency']
 
     # We will plot the medoid for each cell type
     coord_medoids = {condition:{} for condition in conditions}
@@ -339,140 +344,102 @@ def plot_spatial_regions(adata: anndata.AnnData,
     for condition in cellproximity_adjacencies:
         transitions = celltype_transitions[condition]
         cellproximities = cellproximity_adjacencies[condition]
-        adata_subset = adata[adata.obs.Group == condition]
-        adata.obs.AT.cat.remove_unused_categories(inplace=True)
+        adata_subset = adata[adata.obs[condition_label] == condition]
+        adata_subset.obs[celltype_label].cat.remove_unused_categories(inplace=True)
 
+        causality_flow_graph = nx.DiGraph()
 
-#     for index, row in cellproximities.iterrows():
+        causality_flow_graph.add_nodes_from(celltypes)
 
-#         cluster_A = row['cell_1']
-#         cluster_B = row['cell_2']
-#         cluster_A_index = clusters.index(cluster_A)
-#         cluster_B_index = clusters.index(cluster_B)
+        total_weight = 0.0
+        causal_edges = adata.uns['causal_network']['networks'][condition]['edges']
 
-        
-#         adjacencies[cluster_A_index, cluster_B_index] = row['enrichm'] # Add the adjacency if it's found from Giotto
+        for edge in causal_edges:
 
-#     cellproximity_adjacencies[condition] = adjacencies
+            source, target = edge
+            source_celltype = source.split(node_sep)[0]
+            target_celltype = target.split(node_sep)[0]
 
-#     # Define the connectivity graph
-#     connectivity_graph = nx.Graph()
-#     connectivity_graph.add_nodes_from(clusters)
+            source_celltype_index = celltypes.index(source_celltype)
+            target_celltype_index = celltypes.index(target_celltype)
 
-#     nonzero_rows, nonzero_cols = adjacencies.nonzero()
+            edge_weight = 1.0
+            if network_label == 'causal_network':
+                source_index = celltype_ligands.index(source)
+                target_index = celltype_ligands.index(target)
+                edge_weight = causal_adjacency[source_index, target_index]
 
-#     for j in range(len(nonzero_rows)):
+            transitions[source_celltype_index, target_celltype_index] += edge_weight
+            total_weight += edge_weight
+            
+        celltype_transitions[condition] = transitions
 
-#         node_1 = clusters[nonzero_rows[j]]
-#         node_2 = clusters[nonzero_cols[j]]
+        perturbed_celltypes_dict = {celltype:0.0 for celltype in celltypes}
 
-#         if node_1 != node_2:
-#             connectivity_graph.add_edge(node_1, node_2)
+        if network_label == 'causal_network':
+            perturbed_targets = adata.uns[network_label]['perturbed_targets']
 
-#     # Plot the giotto networks on top of the scatter plots
-#         # Create plot
+            for targets_list in perturbed_targets:
+                for i in range(len(targets_list)):
+                    celltype_ligand = celltype_ligands[i]
+                    celltype = celltype_ligand.split(node_sep)[0]
+                    intervention_target_freq = targets_list[i]
 
-#     sc.pl.scatter(adata, x=coord_labels[0], y=coord_labels[1], color=celltype_label,
-#                 legend_loc='none', size=100.0, title=condition, alpha=0.25,
-#                 frameon=False, show=False)
+                    if celltype in celltypes:
+                        celltype_index = celltypes.index(celltype)
 
-#     # Plot the network now
-#     edge_colors = [node_color_map[clusters.index(edge[0])] for edge in connectivity_graph.edges()]
-#     node_colors = [node_color_map[clusters.index(node)] for node in connectivity_graph.nodes()]
-#     nodes = nx.draw_networkx_nodes(connectivity_graph, coord_medoids[condition], node_color=node_colors, node_size=75.0)
-#     edges = nx.draw_networkx_edges(
-#         connectivity_graph,
-#         coord_medoids[condition],
-#         edge_color='black',
-#         connectionstyle="arc3,rad=0.2",
-#         alpha=0.5,
-#         width=1.0,
-#     )
+                        # We only care about this variable being intervened if it still exists after
+                        # constraining output etc.
+                        if ( (transitions[celltype_index, :].sum() != 0)|(transitions[:, celltype_index].sum() != 0) ):
+                            if celltype in perturbed_celltypes_dict:
+                                perturbed_celltypes_dict[celltype] += intervention_target_freq
+                            else:
+                                perturbed_celltypes_dict[celltype] = intervention_target_freq
 
-#     plt.axis('off')
-#     plt.savefig(data_directory + 'chen20_3mo_cellproximity_scatter_' + condition + '.pdf')
+            for celltype in perturbed_celltypes_dict:
+                perturbed_celltypes_dict[celltype] /= float(len(perturbed_targets))
 
-#     causality_flow_graph = nx.DiGraph()
+    nonzero_rows, nonzero_cols = transitions.nonzero()
 
-#     causality_flow_graph.add_nodes_from(clusters)
+    for j in range(len(nonzero_rows)):
 
-#     # We will load the original inferred graph
-#     # cluster_ligand_graph = nx.read_edgelist(data_directory + 'chen20_3mo_cccflow_utigsp_adjacency_parcorr_bagged_' + condition + '_edgetype.edgelist.gz',
-#     #                                                 create_using=nx.DiGraph(), data=[('weight', float)])
+        node_1 = celltypes[nonzero_rows[j]]
+        node_2 = celltypes[nonzero_cols[j]]
 
-#     inferred_edges = pd.read_csv(data_directory + 'chen20_3mo_cccflow_utigsp_adjacency_parcorr_bagged_ligand_target_edges.csv')
-#     inferred_edges_subset = inferred_edges[(inferred_edges['Group'] == condition)|(inferred_edges['Group'] == 'Both') ]
-#     intervention_targets = np.genfromtxt(data_directory + "chen20_3mo_celltype_utigsp_interventiontargets_parcorr_bagged.csv", delimiter="\n")
+        causality_flow_graph.add_edge(node_1, node_2)
+        causality_flow_graph.edges[node_1, node_2]['weight'] = transitions[nonzero_rows[j], nonzero_cols[j]]
 
-#     total_weight = 0
-#     for index, row in inferred_edges_subset.iterrows():
+        # Plot the giotto networks on top of the scatter plots
+        # Create plot
+    plt.figure(figsize=(6, 6))
 
-#         node_1_cluster = row['Source']
-#         node_2_cluster = row['Target']
+    sc.pl.scatter(adata, x='coord_X', y='coord_Y', color='AT',
+                legend_loc='none', size=100.0, title=condition, alpha=0.1,
+                frameon=False, show=False)
 
-#         cluster_1_index = clusters.index(node_1_cluster)
-#         cluster_2_index = clusters.index(node_2_cluster)
+    # Plot the network now
+    edge_colors = [node_color_map[celltypes.index(edge[0])] for edge in causality_flow_graph.edges()]
+    node_colors = [node_color_map[celltypes.index(node)] for node in causality_flow_graph.nodes()]
+    orig_edge_weights = list(nx.get_edge_attributes(causality_flow_graph,'weight').values())
+    edge_weights = [edge_width_scale*weight/ total_weight for weight in orig_edge_weights]
+    node_borders = [node_border_scale*perturbed_celltypes_dict[node] for node in causality_flow_graph.nodes()]
 
-#         edge_weight = row['Frequency']
+    nodes = nx.draw_networkx_nodes(causality_flow_graph, coord_medoids[condition], cmap=node_cmap, node_color=node_colors, node_size=node_size, edgecolors='black', linewidths=node_borders)
+    edges = nx.draw_networkx_edges(
+        causality_flow_graph,   
+        coord_medoids[condition],
+        edge_cmap = edge_cmap, 
+        edge_color=edge_colors,
+        connectionstyle="arc3,rad=0.5",
+        alpha=edge_alpha,
+        width=edge_weights,
+    )
 
-#         transitions[cluster_1_index, cluster_2_index] += edge_weight
-#         total_weight += edge_weight
-#     cluster_transitions[condition] = transitions
+    plt.axis('off')
 
-#     intervened_targets_dict = {cluster:0.0 for cluster in clusters}
-#     for i in range(len(intervention_targets)):
-#         cluster_ligand = cluster_ligands[i]
-#         cluster = cluster_ligand.split('_')[0]
-#         intervention_target_freq = intervention_targets[i]
-
-#         if cluster in clusters:
-#             cluster_index = clusters.index(cluster)
-
-#             if ( (transitions[cluster_index,:].sum() != 0)|(transitions[:, cluster_index].sum() != 0) ):
-#                 if cluster in intervened_targets_dict:
-#                     intervened_targets_dict[cluster] += intervention_target_freq
-#                 else:
-#                     intervened_targets_dict[cluster] = intervention_target_freq
-
-
-
-#     nonzero_rows, nonzero_cols = transitions.nonzero()
-
-#     for j in range(len(nonzero_rows)):
-
-#         node_1 = clusters[nonzero_rows[j]]
-#         node_2 = clusters[nonzero_cols[j]]
-
-#         causality_flow_graph.add_edge(node_1, node_2)
-#         causality_flow_graph.edges[node_1, node_2]['weight'] = transitions[nonzero_rows[j], nonzero_cols[j]]
-
-#         # Plot the giotto networks on top of the scatter plots
-#         # Create plot
-#     plt.figure(figsize=(6, 6))
-
-#     sc.pl.scatter(adata, x='coord_X', y='coord_Y', color='AT',
-#                 legend_loc='none', size=100.0, title=condition, alpha=0.1,
-#                 frameon=False, show=False)
-
-#     # Plot the network now
-#     edge_colors = [node_color_map[celltypes.index(edge[0])] for edge in causality_flow_graph.edges()]
-#     node_colors = [node_color_map[celltypes.index(node)] for node in causality_flow_graph.nodes()]
-#     orig_edge_weights = list(nx.get_edge_attributes(causality_flow_graph,'weight').values())
-#     edge_weights = [edge_width_scale*weight/ total_weight for weight in orig_edge_weights]
-#     node_borders = [node_border_scale*intervened_targets_dict[node] for node in causality_flow_graph.nodes()]
-
-#     nodes = nx.draw_networkx_nodes(causality_flow_graph, coord_medoids[condition], node_color=node_colors, node_size=node_size, edgecolors='black', linewidths=node_borders)
-#     edges = nx.draw_networkx_edges(
-#         causality_flow_graph,   
-#         coord_medoids[condition],
-#         edge_color=edge_colors,
-#         connectionstyle="arc3,rad=0.5",
-#         alpha=1.0,
-#         width=edge_weights,
-#     )
-
-#     plt.axis('off')
-#     plt.savefig(data_directory + 'chen20_3mo_causalflows_scatter_' + condition + '.pdf')
+    if output_name:
+        cwd = os.getcwd() + '/'
+        plt.savefig(cwd + output_name + '.pdf')
 
 
 
