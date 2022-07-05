@@ -110,7 +110,9 @@ def learn_causal_network(adata: anndata.AnnData,
     # Extract the control and perturbed samples
     conditions = adata.obs[condition_label].unique().tolist()
     control_sample = adata[adata.obs[condition_label] == control_label].obsm[celltype_ligands_label] # Define the control data
-    perturbed_samples = [adata[adata.obs[condition_label] == cond].obsm[celltype_ligands_label]  for cond in conditions if cond != control_label] # Get the perturbed data
+    
+    perturbed_conditions = [cond for cond in conditions if cond != control_label]
+    perturbed_samples = [adata[adata.obs[condition_label] == cond].obsm[celltype_ligands_label]  for cond in perturbed_conditions] # Get the perturbed data
 
     celltype_ligands = adata.uns[base_network_label]['celltype_ligands']
 
@@ -282,7 +284,18 @@ def learn_causal_network(adata: anndata.AnnData,
             intervention_targets /= float(n_bootstraps) # Average the results
             bagged_intervention_targets[i] = intervention_targets
 
-        return {'celltype_ligands': celltype_ligands, 'causal_adjacency': bagged_adjacency_dag, 'perturbed_targets':bagged_intervention_targets}
+        causal_edges = []
+
+        nonzero_rows, nonzero_cols = bagged_adjacency_dag.nonzero()
+
+        for i in range(len(nonzero_rows)):
+            
+            causal_edges.append((celltype_ligands[nonzero_rows[i]], celltype_ligands[nonzero_cols[i]]))
+
+        return {'celltype_ligands': celltype_ligands,
+                'causal_adjacency': bagged_adjacency_dag,
+                'perturbed_targets':bagged_intervention_targets,
+                'networks':{'joined':{'nodes':celltype_ligands, 'edges':causal_edges}}}
 
     # Run the code
     if __name__ == '__main__': 

@@ -290,7 +290,12 @@ def construct_base_networks_from_cellphonedb(adata, cellphonedb_outputs, feasibl
 
 def construct_base_networks_from_squidpy(adata: anndata.AnnData,
                                         squidpy_outputs: Dict[str, Dict[str, pd.DataFrame]],
-                                        feasible_pairs: Optional[], condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff):
+                                        condition_label: str,
+                                        feasible_pairs: Optional[list] = None, 
+                                        celltype_sep_old: str = ' ', 
+                                        celltype_sep_new: str = '-',
+                                        node_sep: str = '_',
+                                        pval_cutoff: float = 0.05):
     """
     Constructs the base network of possible causal interactions from
     cell-cell communication inferred using Squidpy.
