@@ -119,19 +119,19 @@ def construct_base_networks(adata: anndata.AnnData,
 
         if method == 'cellchat':
             
-            adata.uns[base_network_label] = construct_base_networks_from_cellchat(adata, ccc_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep)
+            adata.uns[base_network_label] = construct_base_networks_from_cellchat(adata, ccc_outputs, condition_label, feasible_pairs, celltype_sep_old, celltype_sep_new, node_sep)
 
         elif method == 'cellphonedb':
 
-            adata.uns[base_network_label] = construct_base_networks_from_cellphonedb(adata, ccc_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff)
+            adata.uns[base_network_label] = construct_base_networks_from_cellphonedb(adata, ccc_outputs, condition_label, feasible_pairs, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff)
 
         else: # Should be Squidpy
 
-            adata.uns[base_network_label] = construct_base_networks_from_squidpy(adata, ccc_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff)
+            adata.uns[base_network_label] = construct_base_networks_from_squidpy(adata, ccc_outputs, condition_label, feasible_pairs, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff)
 
 def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_label, feasible_pairs, celltype_sep_old, celltype_sep_new, node_sep):
 
-    conditions = adata.obs[condition_label].unique().tolist()
+    conditions = list(adata.obs[condition_label].unique())
 
     # Store the possible causal edges for each condition, as well as the union of all cell-type-ligand pairs considered
     base_networks = {condition:{'nodes':[], 'edges':[]} for condition in conditions}
@@ -213,6 +213,7 @@ def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_lab
             base_networks[condition]['nodes'] = considered_celltype_ligands
 
         # Finally construct the "union" candidate network across all conditions
+        base_networks['joined'] = {}
         base_networks['joined']['nodes'] = considered_celltype_ligands
         base_networks['joined']['edges'] = list(set.union(*map(set, [base_networks[condition]['edges'] for condition in conditions])))
 

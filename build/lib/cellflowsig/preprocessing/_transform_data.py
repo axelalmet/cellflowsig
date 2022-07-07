@@ -69,7 +69,7 @@ def construct_celltype_ligand_expressions(adata:anndata.AnnData,\
             
             celltype_indices = np.where(adata.obs[celltype_label] == celltype)[0]
                     
-            interaction_expression = adata[celltype_indices, ligand]
+            interaction_expression = adata[celltype_indices, ligand].X.toarray()
                     
             celltype_ligand_expressions[celltype_indices, i] = interaction_expression.reshape((len(celltype_indices), ))
 
