@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: cellflowsig
-Version: 0.1
+Version: 0.2
 Summary: Use graphical causal modeling to infer causal signaling networks from single-cell transcriptomics data and CCC inference.
 Home-page: UNKNOWN
 Author: Axel A. Almet
