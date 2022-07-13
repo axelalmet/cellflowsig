@@ -10,10 +10,7 @@ Welcome to CellFlowSig's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   usage
-   api
-
-
+   api/index
 
 Indices and tables
 ==================
