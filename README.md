@@ -4,7 +4,7 @@ Python package to infer systems-level causal signaling networks at a cell type r
 CellFlowSig requires:
 
 1. Single-cell RNA-sequencing (scRNA-seq) or spatial transcriptomics data with cell state annotation sampled from one control and one or more perturbed conditions, e.g. disease severity.
-2. Cell-cell communication inferred from the single-cell data. We recommend [CellChat](https://github.com/sqjin/CellChat) or [CellPhoneDB](https://www.cellphonedb.org/); for the latter, the [Squidpy](https://squidpy.readthedocs.io/en/stable/) implementation of CellPhoneDB is also supported.
+2. Cell-cell communication (CCC) inferred for each condition of interest from the single-cell data . We recommend [CellChat](https://github.com/sqjin/CellChat) or [CellPhoneDB](https://www.cellphonedb.org/); for the latter, the [Squidpy](https://squidpy.readthedocs.io/en/stable/) implementation of CellPhoneDB is also supported.
 
 ## Application to non-spatial scRNA-seq
 Here, we show how to apply CellFlowSig to an scRNA-seq dataset of wildtype
