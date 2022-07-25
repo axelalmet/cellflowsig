@@ -99,9 +99,6 @@ def validate_against_base_network(adata: anndata.AnnData,
                     if ((node_1, node_2) in base_networks[condition]['edges']):
                         relevant_conditions.append(condition)
 
-                    # Get the relevant interactions and thus receptors
-                    relevant_interactions = []
-
                     if len(relevant_conditions) == len(conditions):
 
                         relevant_conditions = ['Both']
@@ -109,36 +106,43 @@ def validate_against_base_network(adata: anndata.AnnData,
                         if len(conditions) > 2: # Change just to be pedantic
                             relevant_conditions = ['All']
 
-                    if ('All' in relevant_conditions)|('Both' in relevant_conditions):
-                        relevant_interactions = pd.concat([ccc_output[cond][(ccc_output[cond]['source'] == node_1_celltype)
-                                                                                    &(ccc_output[cond]['target'] == node_2_celltype)
-                                                                                    &(ccc_output[cond]['ligand'] == node_1_ligand)] for cond in conditions])
-                    else:
-                        relevant_interactions = pd.concat([ccc_output[cond][(ccc_output[cond]['source'] == node_1_celltype)
-                                                                                    &(ccc_output[cond]['target'] == node_2_celltype)
-                                                                                    &(ccc_output[cond]['ligand'] == node_1_ligand)] for cond in relevant_conditions])
+                    # Get the relevant interactions and thus receptors
+                        relevant_ccc = []
 
-                    receptors = []
+                        if ('All' in relevant_conditions)|('Both' in relevant_conditions):
+                                relevant_ccc = [ccc_output[cond][(ccc_output[cond]['source'] == node_1_celltype)
+                                                &(ccc_output[cond]['target'] == node_2_celltype)
+                                                &(ccc_output[cond]['ligand'] == node_1_ligand)] for cond in conditions]
 
-                    unique_interactions = relevant_interactions['interaction_name_2'].unique()
+                        else:
+                            relevant_ccc = [ccc_output[cond][(ccc_output[cond]['source'] == node_1_celltype)
+                                            &(ccc_output[cond]['target'] == node_2_celltype)
+                                            &(ccc_output[cond]['ligand'] == node_1_ligand)] for cond in relevant_conditions]
 
-                    for interaction in unique_interactions:
-                        receptor_split = interaction.split(' - ')[1].strip('()').split('+')
-                        for sub in receptor_split:
-                            if sub not in receptors:
-                                receptors.append(sub)
+                        if relevant_ccc:                                                            
+                            relevant_interactions = pd.concat(relevant_ccc)
 
-                    # Join the receptors
-                    receptors_joined = '_'.join(receptors)
-                    
-                    if receptors_joined: # Only add the row if the receptors have been identified
-                        sources.append(node_1_celltype)
-                        targets.append(node_2_celltype)
-                        ligands_sources.append(node_1_ligand)
-                        ligands_targets.append(node_2_ligand)
-                        edge_frequencies.append(causal_adjacency[nonzero_rows[j], nonzero_cols[j]])
-                        conditions_found.append('_'.join(relevant_conditions))
-                        receptors_targets.append(receptors_joined)
+                            receptors = []
+
+                            unique_interactions = relevant_interactions['interaction_name_2'].unique()
+
+                            for interaction in unique_interactions:
+                                receptor_split = interaction.split(' - ')[1].strip('()').split('+')
+                                for sub in receptor_split:
+                                    if sub not in receptors:
+                                        receptors.append(sub)
+
+                            # Join the receptors
+                            receptors_joined = '_'.join(receptors)
+                            
+                            if receptors_joined: # Only add the row if the receptors have been identified
+                                sources.append(node_1_celltype)
+                                targets.append(node_2_celltype)
+                                ligands_sources.append(node_1_ligand)
+                                ligands_targets.append(node_2_ligand)
+                                edge_frequencies.append(causal_adjacency[nonzero_rows[j], nonzero_cols[j]])
+                                conditions_found.append('_'.join(relevant_conditions))
+                                receptors_targets.append(receptors_joined)
 
         else:
 
