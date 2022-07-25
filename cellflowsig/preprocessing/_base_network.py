@@ -137,6 +137,9 @@ def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_lab
     base_networks = {condition:{'nodes':[], 'edges':[]} for condition in conditions}
     considered_celltype_ligands = []
 
+    # Also transform the feasible pairs to the correct formatting
+    feasible_pairs = [(pair[0].replace(celltype_sep_old, celltype_sep_new), pair[1].replace(celltype_sep_old, celltype_sep_new)) for pair in feasible_pairs]
+
     # Construct the possible causal edges between cell-type-ligand pairs
     for i in range(len(conditions)):
 
@@ -177,8 +180,8 @@ def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_lab
                     # Add the celltype-ligand pair to the condition-specific list of edges
                     if feasible_pairs: # If a list of feasible pairs has been specified
 
-                        if ((celltype_ligand_A, celltype_ligand_B) in feasible_pairs)|\
-                         ((celltype_ligand_B, celltype_ligand_A) in feasible_pairs):
+                        if ((celltype_A, celltype_B) in feasible_pairs)|\
+                         ((celltype_B, celltype_A) in feasible_pairs):
 
                             if (celltype_ligand_A, celltype_ligand_B) not in possible_edges:
                                 possible_edges.append((celltype_ligand_A, celltype_ligand_B))

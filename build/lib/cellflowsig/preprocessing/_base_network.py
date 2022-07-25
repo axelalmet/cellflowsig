@@ -218,7 +218,7 @@ def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_lab
         base_networks['joined']['edges'] = list(set.union(*map(set, [base_networks[condition]['edges'] for condition in conditions])))
 
     # Define as dictionary
-    base_networks = {'ccc_output':cellchat_outputs, 'celltype_ligands':considered_celltype_ligands, 'networks':base_networks}
+    base_networks = {'ccc_output':cellchat_outputs, 'celltype_ligands':considered_celltype_ligands, 'networks':base_networks, 'feasible_pairs':feasible_pairs}
     return base_networks
 
 def construct_base_networks_from_cellphonedb(adata, cellphonedb_outputs, feasible_pairs, condition_label, celltype_sep_old, celltype_sep_new, node_sep, pval_cutoff):
