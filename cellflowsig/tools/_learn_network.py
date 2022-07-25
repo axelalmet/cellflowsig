@@ -234,7 +234,7 @@ def learn_causal_network(adata: anndata.AnnData,
     celltype_ligands = list(adata.uns[base_network_label]['celltype_ligands'])
 
     # Define the joined candidate network
-    base_network_edges = list(adata.uns[base_network_label]['networks']['joined']['edges'])
+    base_network_edges = [(pair[0], pair[1]) for pair in adata.uns['base_networks']['networks']['joined']['edges']]
 
     # Randomly shuffle to edges to generate initial permutations for initial DAGs
     bagged_adjacency_dag = np.zeros((len(celltype_ligands), len(celltype_ligands)))
@@ -253,6 +253,7 @@ def learn_causal_network(adata: anndata.AnnData,
                         base_network_edges, n_shuffles,
                         alpha_ci, alpha_inv,
                         boot) for boot in range(n_bootstraps)]
+                        
     bootstrap_results = Parallel(n_jobs=n_jobs)(delayed(run_utigsp)(*arg) for arg in args_allperms)
 
     end = timer()
