@@ -54,7 +54,7 @@ def run_utigsp(control_sample: np.ndarray,
     nonzero_celltype_ligand_indices = reduce(np.intersect1d, (nonzero_celltype_ligand_indices_control, *nonzero_celltype_ligand_indices_perturbed))
 
     # Subset based on the ligands with zero std in both cases
-    considered_celltype_ligands = [celltype_ligands[ind] for ind in nonzero_celltype_ligand_indices]
+    considered_celltype_ligands = list([celltype_ligands[ind] for ind in nonzero_celltype_ligand_indices])
     
     nodes = set(considered_celltype_ligands)
 
@@ -231,10 +231,10 @@ def learn_causal_network(adata: anndata.AnnData,
     perturbed_conditions = [cond for cond in conditions if cond != control_label]
     perturbed_samples = [adata[adata.obs[condition_label] == cond].obsm[celltype_ligands_label]  for cond in perturbed_conditions] # Get the perturbed data
 
-    celltype_ligands = adata.uns[base_network_label]['celltype_ligands']
+    celltype_ligands = list(adata.uns[base_network_label]['celltype_ligands'])
 
     # Define the joined candidate network
-    base_network_edges = adata.uns[base_network_label]['networks']['joined']['edges']
+    base_network_edges = list(adata.uns[base_network_label]['networks']['joined']['edges'])
 
     # Randomly shuffle to edges to generate initial permutations for initial DAGs
     bagged_adjacency_dag = np.zeros((len(celltype_ligands), len(celltype_ligands)))
