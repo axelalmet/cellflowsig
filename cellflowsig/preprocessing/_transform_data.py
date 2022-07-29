@@ -4,7 +4,7 @@ import anndata
 
 def construct_celltype_ligand_expressions(adata:anndata.AnnData,\
                                         celltype_label: str,
-                                        celltype_sep_old: str = ' ',
+                                        celltype_sep_old: str = '_',
                                         celltype_sep_new: str = '-',
                                         node_sep: str = '_',
                                         expressions_label: str = 'X_celltype_ligand',

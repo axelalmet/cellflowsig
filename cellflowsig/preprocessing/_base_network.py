@@ -157,53 +157,56 @@ def construct_base_networks_from_cellchat(adata, cellchat_outputs, condition_lab
             
             # Correct for the ligand and receptor names if they're not found in the data
             if ligand_A not in adata.var_names:
-                ligand_A = row['interaction_name_2'].split(' - ')[0]
+                ligand_A = row['interaction_name_2'].split(' - ')[0].strip(' ')
 
-            # Define the celltype ligand pairs
-            celltype_ligand_A = celltype_A.replace(celltype_sep_old, celltype_sep_new) + node_sep + ligand_A
+            if ligand_A in adata.var_names: # In case there are weird cases where ligands have been imputed
+                # Define the celltype ligand pairs
+                celltype_ligand_A = celltype_A.replace(celltype_sep_old, celltype_sep_new) + node_sep + ligand_A
 
-            # Get all of the secondary interactions with cell type B as the sender cell type
-            celltype_B_targets = ccc_output[ccc_output['source'] == celltype_B]
+                # Get all of the secondary interactions with cell type B as the sender cell type
+                celltype_B_targets = ccc_output[ccc_output['source'] == celltype_B]
 
-            for target_index, target_row in celltype_B_targets.iterrows():
+                for target_index, target_row in celltype_B_targets.iterrows():
 
-                ligand_B = target_row['ligand']
-                
-                # Correct for the ligand and receptor names if they're not found in the data
-                if ligand_B not in adata.var_names:
-                    ligand_B = target_row['interaction_name_2'].split(' - ')[0]
+                    ligand_B = target_row['ligand']
+                    
+                    # Correct for the ligand and receptor names if they're not found in the data
+                    if ligand_B not in adata.var_names:
+                        ligand_B = target_row['interaction_name_2'].split(' - ')[0].strip(' ')
 
-                celltype_ligand_B = celltype_B.replace(celltype_sep_old, celltype_sep_new) + node_sep + ligand_B 
+                    if ligand_B in adata.var_names:
 
-                if index != target_index: # So that we don't store the same interaction
+                        celltype_ligand_B = celltype_B.replace(celltype_sep_old, celltype_sep_new) + node_sep + ligand_B 
 
-                    # Add the celltype-ligand pair to the condition-specific list of edges
-                    if feasible_pairs: # If a list of feasible pairs has been specified
+                        if index != target_index: # So that we don't store the same interaction
 
-                        if ((celltype_A, celltype_B) in feasible_pairs)|\
-                         ((celltype_B, celltype_A) in feasible_pairs):
+                            # Add the celltype-ligand pair to the condition-specific list of edges
+                            if feasible_pairs: # If a list of feasible pairs has been specified
 
-                            if (celltype_ligand_A, celltype_ligand_B) not in possible_edges:
-                                possible_edges.append((celltype_ligand_A, celltype_ligand_B))
+                                if ((celltype_A, celltype_B) in feasible_pairs)|\
+                                ((celltype_B, celltype_A) in feasible_pairs):
 
-                            # Also add the pairs to the union list of possible nodes
-                            if celltype_ligand_A not in considered_celltype_ligands:
-                                considered_celltype_ligands.append(celltype_ligand_A)
+                                    if (celltype_ligand_A, celltype_ligand_B) not in possible_edges:
+                                        possible_edges.append((celltype_ligand_A, celltype_ligand_B))
 
-                            if celltype_ligand_B not in considered_celltype_ligands:
-                                considered_celltype_ligands.append(celltype_ligand_B)
+                                    # Also add the pairs to the union list of possible nodes
+                                    if celltype_ligand_A not in considered_celltype_ligands:
+                                        considered_celltype_ligands.append(celltype_ligand_A)
 
-                    else: # Otherwise we can just add the edge and update the joint nodes list
+                                    if celltype_ligand_B not in considered_celltype_ligands:
+                                        considered_celltype_ligands.append(celltype_ligand_B)
 
-                        if (celltype_ligand_A, celltype_ligand_B) not in possible_edges:
-                            possible_edges.append((celltype_ligand_A, celltype_ligand_B))
+                            else: # Otherwise we can just add the edge and update the joint nodes list
 
-                        # Also add the pairs to the union list of possible nodes
-                        if celltype_ligand_A not in considered_celltype_ligands:
-                            considered_celltype_ligands.append(celltype_ligand_A)
+                                if (celltype_ligand_A, celltype_ligand_B) not in possible_edges:
+                                    possible_edges.append((celltype_ligand_A, celltype_ligand_B))
 
-                        if celltype_ligand_B not in considered_celltype_ligands:
-                            considered_celltype_ligands.append(celltype_ligand_B)
+                                # Also add the pairs to the union list of possible nodes
+                                if celltype_ligand_A not in considered_celltype_ligands:
+                                    considered_celltype_ligands.append(celltype_ligand_A)
+
+                                if celltype_ligand_B not in considered_celltype_ligands:
+                                    considered_celltype_ligands.append(celltype_ligand_B)
                     
 
         base_networks[condition]['edges'] = possible_edges
